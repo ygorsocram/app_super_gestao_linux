@@ -1,4 +1,4 @@
-<h3>Principal (view) </h3>
+<h3>Sobre nos (view) </h3>
 
 <ul>
     <li>
