@@ -1,0 +1,94 @@
+version: '3.6'
+
+services:
+
+  #1. PHP competie
+  php_8_1_super_gestao:
+    build:
+      context: .
+      dockerfile: ./docker/php/Dockerfile
+    #image: registry.gitlab.com/emissores_repositorio/emissores_novo_backend/php:8.1
+    container_name: php_8_1_super_gestao
+    restart: always
+    tty: true
+    env_file:
+      - ./.env
+      - ./src/.env
+    environment:
+      PHP_IDE_CONFIG: "serverName=php_super_gestao"
+      XDEBUG_ENABLED: ${XDEBUG_ENABLED}
+      OS_PLATFORM: ${OS_PLATFORM}
+      ############################
+      APP_PATH: /var/www/supergestao.com.br/public
+      ############################
+    working_dir: /var/www/supergestao.com.br/public
+    ports:
+      - "8010:8010"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./src/:/var/www/supergestao.com.br/public
+      - ./docker/php/php-fpm/php-fpm.supergestao.conf:/usr/local/etc/php-fpm.d/zz-docker.conf
+    networks:
+      - network_super_gestao
+    depends_on:
+      - mysql_super_gestao
+
+
+  # Nginx Service
+  nginx_super_gestao:
+    image: nginx:alpine
+    container_name: nginx_super_gestao
+    restart: always
+    tty: true
+    ports:
+      - "7090:7090"
+      - "443"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      # Nginx Main Conf
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      # Nginx Virtual Hosts
+      - ./docker/nginx/sites-enabled/:/etc/nginx/sites-enabled/
+      # Certificates
+      - ./docker/nginx/certificates/supergestao.com.br/:/var/www/supergestao.com.br/certificates/
+      # Web Root
+      - ./src/:/var/www/supergestao.com.br/public
+    depends_on:
+      - php_8_1_super_gestao
+    networks:
+      network_super_gestao:
+        aliases:
+          - local.supergestao.com.br
+          - supergestao.com.br
+
+  mysql_super_gestao:
+    image: mariadb:10.9-jammy
+    restart: always
+    container_name: mysql_super_gestao
+    env_file:
+      - ./.env
+    tty: true
+    environment:
+      ############################
+      MYSQL_ROOT_PASSWORD: "competti"
+      MYSQL_DATABASE: "supergestao"
+      ############################
+    ports:
+      - '3309:3306'
+    volumes:
+      - ./docker/my.conf:/etc/mysql/conf.d/my.conf
+      - volume_mysql_super_gestao:/var/lib/mysql
+    networks:
+      - network_super_gestao
+
+networks:
+  network_super_gestao:
+    driver: bridge
+    name: network_super_gestao
+
+volumes:
+  cache:
+    driver: local
+  volume_mysql_super_gestao:
